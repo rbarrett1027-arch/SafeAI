@@ -106,6 +106,8 @@ tr.me td { font-weight: 600; }
 .bar .primary { grid-column: 1 / -1; }
 .primary:disabled { opacity: 0.45; cursor: not-allowed; }
 .secondary { border: 1.5px solid var(--ink); background: var(--card); border-radius: 6px; padding: 9px 14px; font-weight: 500; }
+.backrow { margin: 0 0 10px; }
+.backrow .secondary { padding: 6px 12px; font-size: 0.9rem; }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
 .actions .primary { flex: 1 1 240px; }
 
@@ -607,9 +609,37 @@ tr.me td { font-weight: 600; }
       nextBtn(5);
   }
 
+  /* Back is offered only where it cannot undo a revealed outcome: bids are locked once the market result shows, and the inspection card cannot be redrawn. */
+  function backLabel(r, step) {
+    if (r === 3) return 'Back to Round 2 review';
+    var g = G(r);
+    switch (step) {
+      case 'brief': return r === 1 ? 'Back to Part 3' : 'Back to Round 1 review';
+      case 'plan': return 'Back to the briefing';
+      case 'work': return 'Back to the market result';
+      case 'pressure': return r === 1 ? 'Back to the market result' : 'Back to the work plan';
+      case 'inspect': return g.inspected === null ? 'Back to the call' : '';
+      case 'reflect': return 'Back to the round result';
+      default: return '';
+    }
+  }
+  function backBtn(r, step) {
+    var l = backLabel(r, step);
+    return l ? '<div class="backrow"><button class="secondary" data-act="back">&larr; ' + esc(l) + '</button></div>' : '';
+  }
+  function goBack() {
+    var gm = state.game, r = gm.round;
+    if (r === 3) { gm.round = 2; render(); window.scrollTo(0, 0); return; }
+    var g = G(r), st = g.step;
+    if (!backLabel(r, st)) return;
+    if (st === 'brief') { if (r === 1) { go(3); return; } gm.round = 1; render(); window.scrollTo(0, 0); return; }
+    var to = { plan: 'brief', work: 'reveal', pressure: (r === 1 ? 'reveal' : 'work'), inspect: 'pressure', reflect: 'result' }[st];
+    setStep(r, to);
+  }
+
   function part4() {
     var gm = state.game;
-    if (gm.round === 3) return finalView();
+    if (gm.round === 3) return backBtn(3) + finalView();
     var r = gm.round, g = G(r);
     var v;
     switch (g.step) {
@@ -622,7 +652,7 @@ tr.me td { font-weight: 600; }
       case 'result': v = resultView(r); break;
       default: v = reflectView(r);
     }
-    return '<div class="kicker">Part 4 | Round ' + r + ' of 2</div>' + v;
+    return '<div class="kicker">Part 4 | Round ' + r + ' of 2</div>' + backBtn(r, g.step) + v;
   }
 
   /* ---------- part 5: the real code ---------- */
@@ -728,6 +758,7 @@ tr.me td { font-weight: 600; }
       case 'pick': state.ans[el.getAttribute('data-k')] = el.getAttribute('data-v'); render(); return;
       case 'check': state.calc = true; render(); return;
       case 'step': setStep(r, el.getAttribute('data-s')); return;
+      case 'back': goBack(); return;
       case 'lvl':
         var l = parseInt(el.getAttribute('data-l'), 10);
         if (el.getAttribute('data-work') === '1') { g.actual = (g.actual || g.declared.slice()); g.actual[i] = Math.min(l, g.declared[i]); }
