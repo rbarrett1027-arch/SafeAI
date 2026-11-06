@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Lowest Bidder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout idea: a procurement file. Ruled sections on paper, monospace figures, plain text labels for every result. */
+  --paper: #f3f4f0;
+  --card: #fbfbf8;
+  --ink: #14181c;
+  --muted: #566069;
+  --rule: #c8ccc4;
+  --accent: #1d3b5c;
+  --good: #1e6b46;
+  --mixed: #8a5a00;
+  --bad: #a9261d;
+  --good-bg: #e3f0e8;
+  --mixed-bg: #f6ead0;
+  --bad-bg: #f6dedb;
+  --serif: 'IBM Plex Serif', Georgia, serif;
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.5; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; margin: 0; text-wrap: balance; }
+h1 { font-size: 1.9rem; line-height: 1.15; }
+h2 { font-size: 1.35rem; line-height: 1.25; margin-bottom: 8px; }
+h3 { font-size: 1.05rem; line-height: 1.3; }
+p { margin: 0 0 0.75em; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 120px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.kicker { font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.04em; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+.nav { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 12px; border-bottom: 2px solid var(--ink); margin-bottom: 20px; }
+.nav button { flex: 0 0 auto; border: 1.5px solid var(--ink); background: var(--card); border-radius: 6px; padding: 6px 12px; text-align: left; line-height: 1.25; }
+.nav button span { display: block; font-family: var(--mono); font-size: 0.74rem; color: var(--muted); }
+.nav button[aria-current="step"] { background: var(--ink); color: var(--paper); }
+.nav button[aria-current="step"] span { color: #c9ced3; }
+.small-toggle { border: 1.5px solid var(--ink); background: var(--card); border-radius: 6px; padding: 6px 12px; font-size: 0.9rem; }
+.small-toggle[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+.notes { border: 1.5px dashed var(--ink); background: var(--card); padding: 10px 16px; margin-bottom: 18px; font-size: 0.95rem; }
+.notes h3 { font-size: 0.95rem; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+
+.box { border: 1.5px solid var(--ink); background: var(--card); padding: 12px 16px; margin-bottom: 18px; }
+.box .tag { font-family: var(--mono); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 4px; }
+.box.alert { border-color: var(--bad); box-shadow: inset 8px 0 0 var(--bad); padding-left: 24px; }
+.box ol, .box ul { margin: 6px 0 0; padding-left: 1.3em; }
+.box li { margin-bottom: 6px; }
+.field { margin-bottom: 18px; }
+.field > label, .field > .lab { display: block; font-weight: 600; margin-bottom: 4px; }
+input[type="text"], input[type="number"], select, textarea { width: 100%; padding: 9px 12px; border: 1.5px solid var(--ink); border-radius: 6px; background: var(--card); }
+textarea { min-height: 96px; resize: vertical; }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choices button { border: 1.5px solid var(--ink); background: var(--paper); border-radius: 6px; padding: 8px 14px; font-weight: 500; text-align: left; }
+.choices button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.choices.col { flex-direction: column; }
+.choices.col button { width: 100%; }
+
+.tablewrap { overflow-x: auto; margin: 12px 0 16px; border: 1.5px solid var(--ink); background: var(--card); }
+table { border-collapse: collapse; width: 100%; font-size: 0.98rem; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; font-family: var(--mono); color: var(--muted); }
+td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+tr.win td { background: var(--mixed-bg); font-weight: 600; }
+tr.me td { font-weight: 600; }
+
+.checks { display: grid; gap: 14px; }
+.check { border: 1.5px solid var(--ink); background: var(--card); padding: 14px 16px; display: grid; gap: 10px; }
+.check.flag { border-color: var(--bad); box-shadow: inset 6px 0 0 var(--bad); }
+.check-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: baseline; }
+.check-head .num { font-family: var(--mono); color: var(--muted); margin-right: 8px; }
+.why { color: var(--muted); margin: 0; }
+.req { font-family: var(--mono); font-size: 0.78rem; padding: 2px 8px; border: 1px solid var(--rule); border-radius: 4px; color: var(--muted); }
+.req.flag { border-color: var(--bad); color: var(--bad); font-weight: 600; }
+.levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.levels button { border: 1.5px solid var(--ink); background: var(--paper); border-radius: 6px; padding: 9px 6px; text-align: center; line-height: 1.25; }
+.levels button b { display: block; font-weight: 600; }
+.levels button span { font-family: var(--mono); font-size: 0.9rem; }
+.levels button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.levels button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.bar { position: sticky; bottom: 0; z-index: 5; margin-top: 18px; border: 2px solid var(--ink); background: var(--card); padding: 12px 16px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 16px; align-items: end; box-shadow: 0 -6px 0 var(--paper); }
+.bar-cell { display: flex; flex-direction: column; gap: 2px; }
+.lbl { font-size: 0.8rem; color: var(--muted); }
+.fig { font-family: var(--mono); font-size: 1.4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fig.neg { color: var(--bad); }
+.stepper { display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; gap: 6px; }
+.stepper button { border: 1.5px solid var(--ink); background: var(--paper); border-radius: 6px; font-size: 1.2rem; }
+.stepper input { text-align: center; font-family: var(--mono); font-weight: 600; font-size: 1.1rem; }
+.bar-status { grid-column: 1 / -1; font-size: 0.95rem; margin: 0; }
+.bar-status.bad { color: var(--bad); font-weight: 600; }
+.bar-status.good { color: var(--good); font-weight: 600; }
+.primary { border: 2px solid var(--ink); background: var(--accent); color: #fff; border-radius: 6px; padding: 11px 16px; font-weight: 600; }
+.bar .primary { grid-column: 1 / -1; }
+.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.secondary { border: 1.5px solid var(--ink); background: var(--card); border-radius: 6px; padding: 9px 14px; font-weight: 500; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.actions .primary { flex: 1 1 240px; }
+
+.chips { display: inline-flex; gap: 4px; vertical-align: middle; }
+.chip { font-family: var(--mono); font-weight: 600; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px solid; font-size: 0.9rem; }
+.chip.t { background: var(--good-bg); color: var(--good); border-color: var(--good); }
+.chip.b { background: var(--mixed-bg); color: var(--mixed); border-color: var(--mixed); }
+.chip.n { background: var(--bad-bg); color: var(--bad); border-color: var(--bad); }
+.legend { font-size: 0.9rem; color: var(--muted); margin: 6px 0 14px; }
+.pill { display: inline-block; font-family: var(--mono); font-size: 0.78rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; border: 1.5px solid; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
+.pill.good { color: var(--good); border-color: var(--good); background: var(--good-bg); }
+.pill.mixed { color: var(--mixed); border-color: var(--mixed); background: var(--mixed-bg); }
+.pill.bad { color: var(--bad); border-color: var(--bad); background: var(--bad-bg); }
+.pill.plain { color: var(--muted); border-color: var(--rule); background: transparent; }
+
+.verdict { border: 2px solid var(--ink); background: var(--card); padding: 16px 20px; margin: 16px 0; display: grid; gap: 6px; }
+.verdict .big { font-family: var(--serif); font-size: 1.5rem; font-weight: 600; }
+.verdict.good { box-shadow: inset 10px 0 0 var(--good); }
+.verdict.mixed { box-shadow: inset 10px 0 0 var(--mixed); }
+.verdict.bad { box-shadow: inset 10px 0 0 var(--bad); }
+.verdict > * { padding-left: 10px; }
+.ledger { font-family: var(--mono); font-size: 0.95rem; }
+.ledger div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--rule); padding: 3px 0; }
+.ledger .tot { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink); margin-top: 4px; padding-top: 6px; }
+.outcomes { display: grid; gap: 12px; margin: 12px 0 20px; }
+.out { border: 1.5px solid var(--ink); background: var(--card); padding: 12px 16px; display: grid; gap: 6px; }
+.out.good { box-shadow: inset 8px 0 0 var(--good); }
+.out.mixed { box-shadow: inset 8px 0 0 var(--mixed); }
+.out.bad { box-shadow: inset 8px 0 0 var(--bad); }
+.out > * { margin: 0; padding-left: 8px; }
+.out-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: center; }
+.callout { border: 1.5px dashed var(--ink); padding: 12px 16px; margin: 14px 0; background: var(--card); }
+.recap { width: 100%; min-height: 260px; font-family: var(--mono); font-size: 0.85rem; }
+.foot { margin-top: 28px; color: var(--muted); font-size: 0.88rem; }
+.q { margin-bottom: 18px; }
+.whogrid { display: grid; gap: 14px; }
+
+@media (max-width: 640px) {
+  .bar { grid-template-columns: 1fr 1fr; }
+  .bar-cell.bidcell { grid-column: 1 / -1; order: -1; }
+  h1 { font-size: 1.55rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .levels button, .primary, .secondary, .choices button { transition: background 0.12s, color 0.12s; }
+}
+</style>
+</head>
+<body>
+<div class="wrap"><div id="app"></div></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- constants ---------- */
+  var CEIL = 60, TARGET = 10, INSPECT = 0.5, FINE_MULT = 3;
+  var LETTERS = 'NBT';
+  var LNAME = ['Skip', 'Basic', 'Thorough'];
+  var TIER_LABEL = { good: 'Good outcome', mixed: 'Mixed outcome', bad: 'Bad outcome' };
+  var OUT_LABEL = ['Missed', 'Partly caught', 'Caught and fixed'];
+  var OUT_CLASS = ['bad', 'mixed', 'good'];
+  var BONUS = [0, 5, 10];
+
+  var ZONES = [
+    ['A  Downtown', '50,000', '12.0', 210, 199],
+    ['B  Eastside', '45,000', '15.5', 195, 179],
+    ['C  West End', '60,000', '9.8', 160, 154],
+    ['D  North Hills', '35,000', '3.2', 85, 82],
+    ['E  South Ridge', '30,000', '1.9', 75, 73]
+  ];
+  var APPENDIX = [
+    'Zones D and E depend on self-reported data through a public app',
+    'About 14% of records were removed as "incomplete"',
+    'The model was validated on the same data it was trained on',
+    'No independent audit has verified the findings',
+    'The algorithm is proprietary',
+    'The city plans a press release: "record-low accidents thanks to SafeAI"'
+  ];
+
+  var CHECKS = [
+    { name: 'Test on new data', cost: 12, critical: true,
+      why: 'SafeAI was validated on the same data it was trained on.',
+      out: [
+        'SafeAI is expanded citywide. On fresh data its real accuracy is far below the headline, and the city finds out after accidents the model never predicted.',
+        'A small test on new data shows accuracy below the headline, but the sample is too small to say by how much. The city expands with a warning label.',
+        'The full test confirms accuracy is below the headline. The city retrains the model before it expands.'] },
+    { name: 'Review the removed records', cost: 8, critical: true,
+      why: 'About 14% of records were removed as incomplete.',
+      out: [
+        'Nobody looks at the removed 14%. They came mostly from neighborhoods with the weakest reporting, so those areas get fewer patrols and slower road repair.',
+        'A sample of the removed records shows a pattern that cannot be confirmed. The city lists it as a risk and expands anyway.',
+        'The removed records skew toward certain neighborhoods. The city restores them and rebuilds the model on fuller data.'] },
+    { name: 'Verify the self-reported zones', cost: 15, critical: true,
+      why: 'Zones D and E rely on accident reports from a public app.',
+      out: [
+        'Zones D and E look safe only because few people report there. The city moves resources away, and the first serious crashes get a slow response.',
+        'A spot-check finds gaps in the Zone D and E data. The city adds a caution to the press release but keeps both zones in the rollout.',
+        'Comparing app reports with hospital and insurance records shows Zones D and E are undercounted. The city corrects the data and keeps resources there.'] },
+    { name: 'Examine the algorithm', cost: 10, critical: false,
+      why: 'The algorithm is proprietary and no one outside ClearView has seen it.',
+      out: [
+        'No one outside ClearView sees how SafeAI works. When a neighborhood asks why it was flagged, the city cannot answer.',
+        'ClearView hands over a summary of the model. It can be described but not tested, so the city can explain some decisions but not all.',
+        'The model is tested directly. The city can explain how each zone is scored and show residents the reasoning.'] },
+    { name: 'Check the press release against the data', cost: 5, critical: false,
+      why: 'The city plans to announce record-low accidents thanks to SafeAI.',
+      out: [
+        'The mayor announces record-low accidents thanks to SafeAI. Reporters check the data, the claim falls apart, and public trust drops.',
+        'The claim is flagged as unproven. The city softens the wording, but the headline number still appears.',
+        'The claim cannot be supported. The city announces a cautious pilot and publishes the audit.'] }
+  ];
+
+  var RIVALS = {
+    1: [
+      { name: 'Quickcheck Consulting', levels: [0, 0, 0, 0, 1], bid: 14 },
+      { name: 'Midvale Partners', levels: [1, 1, 1, 1, 1], bid: 30 },
+      { name: 'Bluegrass Data Group', levels: [2, 1, 2, 0, 1], bid: 38 },
+      { name: 'Lakeside Analytics', levels: [2, 2, 2, 2, 2], bid: 52 }
+    ],
+    2: [
+      { name: 'Midvale Partners', levels: [2, 2, 2, 1, 1], bid: 44 },
+      { name: 'Bluegrass Data Group', levels: [2, 2, 2, 1, 1], bid: 47 },
+      { name: 'Lakeside Analytics', levels: [2, 2, 2, 2, 2], bid: 52 }
+    ]
+  };
+
+  var CODE = [
+    ['Verify before you certify.', 'Do not certify a finding you have not verified.'],
+    ['Test what the public depends on.', 'New data, removed records, and self-reported zones must each be done Thorough.'],
+    ['Report what you find.', 'Report findings as found, even when the client disagrees.'],
+    ['Open the box.', 'Examine any tool you recommend for public use, at least at Basic level.'],
+    ['Do the work you bid.', 'The Ethics Board inspects half of all contracts. A firm found short of its bid pays three times the cost of the work not done. Softening a finding costs $10k and leaving it out costs $20k. Any violation suspends the firm\'s license.']
+  ];
+
+  var PARTS = [
+    { n: 1, title: 'The case', min: 3 },
+    { n: 2, title: 'Audit the headline', min: 4 },
+    { n: 3, title: 'Who is affected', min: 4 },
+    { n: 4, title: 'The audit game', min: 20 },
+    { n: 5, title: 'The real code', min: 7 },
+    { n: 6, title: 'Who answers', min: 10 }
+  ];
+
+  var PRINCIPLES = [
+    ['Awareness', 'Everyone who builds or uses the system should know it can be biased and can harm people.'],
+    ['Access and redress', 'People hurt by an algorithm\'s decision should be able to question it and get a remedy.'],
+    ['Accountability', 'Institutions answer for what their algorithms decide, even when they cannot explain every step.'],
+    ['Explanation', 'Explain both how the system works and why it made specific decisions.'],
+    ['Data provenance', 'Document where the training data came from and how it was collected, and look for bias in it.'],
+    ['Auditability', 'Record the models, data, and decisions so outsiders can check them.'],
+    ['Validation and testing', 'Test the model with rigorous methods, document the results, and test for bias routinely.']
+  ];
+  var CLAUSES = [
+    ['ACM 1.2', 'Avoid harm.'],
+    ['ACM 1.3', 'Be honest and trustworthy.'],
+    ['ACM 2.4', 'Accept and provide appropriate professional review.'],
+    ['ACM 2.5', 'Evaluate computer systems and their impacts thoroughly, including the possible risks. (paraphrased)']
+  ];
+  var COMMON = ['Validation and testing', 'Data provenance', 'Data provenance', 'Auditability or Explanation', 'Accountability, or Validation and testing'];
+
+  /* ---------- state ---------- */
+  function newRound(r) {
+    return { step: 'brief', levels: r === 1 ? [1, 1, 1, 1, 1] : [2, 2, 2, 1, 1], bid: r === 1 ? 30 : 46, declared: null, actual: null, flag: 0, won: false, winner: null, inspected: null };
+  }
+  var state = { part: 1, notes: false, firm: '', ans: {}, game: { round: 1, r: { 1: newRound(1), 2: newRound(2) } }, calc: false };
+
+  /* ---------- pure helpers ---------- */
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function r1(n) { return Math.round(n * 10) / 10; }
+  function money(n) { return (n < 0 ? '-$' : '$') + Math.abs(r1(n)) + 'k'; }
+  function cost(levels) { var t = 0; for (var i = 0; i < CHECKS.length; i++) t += CHECKS[i].cost * levels[i] / 2; return t; }
+  function points(levels) { var t = 0; for (var i = 0; i < levels.length; i++) t += levels[i]; return t; }
+  function tier(p) { return p >= 8 ? 'good' : p >= 5 ? 'mixed' : 'bad'; }
+  function violations(levels) {
+    var v = [];
+    for (var i = 0; i < CHECKS.length; i++) { if (CHECKS[i].critical ? levels[i] < 2 : levels[i] < 1) v.push(CHECKS[i].name); }
+    return v;
+  }
+  function effLevels(levels, flag) {
+    return levels.map(function (l) { return flag === 0 ? l : flag === 1 ? (l >= 2 ? 1 : l) : Math.max(0, l - 1); });
+  }
+  function firmName() { return state.firm.trim() || 'Your firm'; }
+  function G(r) { return state.game.r[r]; }
+  function A(k) { return state.ans[k] || ''; }
+  function chips(levels) {
+    return '<span class="chips">' + levels.map(function (l, i) {
+      return '<span class="chip ' + 'nbt'[l] + '" title="' + esc(CHECKS[i].name) + ': ' + LNAME[l] + '">' + LETTERS[l] + '</span>';
+    }).join('') + '</span>';
+  }
+
+  function resolve(r) {
+    var g = G(r);
+    var entries = RIVALS[r].map(function (x) { return { name: x.name, levels: x.levels, bid: x.bid, rival: true }; });
+    entries.push({ name: firmName(), levels: g.declared, bid: g.bid, rival: false });
+    entries.sort(function (a, b) { return a.bid - b.bid || (a.rival === b.rival ? 0 : a.rival ? -1 : 1); });
+    g.winner = entries[0]; g.won = !entries[0].rival; g.entries = entries;
+  }
+  function calc(r) {
+    var g = G(r), o;
+    if (!g.winner) return { played: false, won: false, eff: [0, 0, 0, 0, 0], points: 0, profit: 0, fine1: 0, fine2: 0, susp: false, bonus: 0, ins: false, flag: 0, tier: 'bad', met: false };
+    if (g.won) {
+      var act = (r === 2 && g.actual) ? g.actual : g.declared;
+      var flag = g.flag || 0, eff = effLevels(act, flag);
+      var shortfall = r1(cost(g.declared) - cost(act));
+      var ins = r === 2 && g.inspected === true;
+      var fine1 = ins ? FINE_MULT * shortfall : 0, fine2 = ins ? flag * 10 : 0;
+      var susp = ins && (shortfall > 0 || flag > 0);
+      o = { won: true, act: act, eff: eff, flag: flag, bonus: BONUS[flag], shortfall: shortfall, ins: ins, fine1: fine1, fine2: fine2, susp: susp,
+        cost: cost(act), bid: g.bid, points: points(eff) };
+      o.profit = g.bid - o.cost + o.bonus - fine1 - fine2;
+    } else {
+      var w = g.winner;
+      o = { won: false, eff: w.levels, winner: w, points: points(w.levels), profit: 0, fine1: 0, fine2: 0, susp: false, bonus: 0, ins: false, flag: 0 };
+    }
+    o.tier = tier(o.points); o.met = o.profit >= TARGET;
+    return o;
+  }
+
+  /* ---------- shared view pieces ---------- */
+  function outcomeCards(levels) {
+    return '<div class="outcomes">' + CHECKS.map(function (c, i) {
+      var l = levels[i];
+      return '<div class="out ' + OUT_CLASS[l] + '"><div class="out-head"><h3>' + (i + 1) + '. ' + esc(c.name) + '</h3><span class="pill ' + OUT_CLASS[l] + '">' + OUT_LABEL[l] + '</span></div><p>' + esc(c.out[l]) + '</p></div>';
+    }).join('') + '</div>';
+  }
+  function zoneTable() {
+    return '<div class="tablewrap"><table><thead><tr><th>Zone</th><th class="num">Population</th><th class="num">Accidents per 1,000</th><th class="num">High-risk predictions</th><th class="num">Confirmed matches</th><th class="num">Accuracy</th></tr></thead><tbody>' +
+      ZONES.map(function (z) { return '<tr><td>' + esc(z[0]) + '</td><td class="num">' + z[1] + '</td><td class="num">' + z[2] + '</td><td class="num">' + z[3] + '</td><td class="num">' + z[4] + '</td><td class="num">' + (Math.round(z[4] / z[3] * 1000) / 10) + '%</td></tr>'; }).join('') +
+      '</tbody></table></div>';
+  }
+  function ta(key, label, ph) {
+    return '<div class="field"><label for="a_' + key + '">' + label + '</label><textarea id="a_' + key + '" data-ans="' + key + '" placeholder="' + esc(ph || '') + '">' + esc(A(key)) + '</textarea></div>';
+  }
+  function pick(key, label, opts) {
+    return '<div class="field"><span class="lab">' + label + '</span><div class="choices">' + opts.map(function (o) {
+      return '<button data-act="pick" data-k="' + key + '" data-v="' + esc(o[0]) + '" aria-pressed="' + (A(key) === o[0]) + '">' + esc(o[1]) + '</button>';
+    }).join('') + '</div></div>';
+  }
+  var VOTES = [['expand', 'Expand'], ['no', 'Do not expand'], ['notyet', 'Not yet']];
+  function voteLabel(v) { for (var i = 0; i < VOTES.length; i++) if (VOTES[i][0] === v) return VOTES[i][1]; return '(no vote)'; }
+
+  /* ---------- parts 1 to 3 ---------- */
+  function part1() {
+    return '<h2>The case: SafeAI</h2>' +
+      '<p>The City of Midvale is piloting SafeAI, a model that predicts traffic accidents. The vendor, ClearView Analytics, reports 95.6% accuracy and recommends citywide expansion. You are an analyst in the city\'s Office of Data and Public Safety. The mayor wants to announce the rollout.</p>' +
+      zoneTable() +
+      '<p>ClearView\'s summary: average accuracy 95.6%. Accidents down 18%. Recommendation: expand citywide.</p>' +
+      pick('vote1', 'Using only this report, would you recommend expanding SafeAI citywide?', VOTES) +
+      ta('why1', 'Why did you vote that way, and what else would you want to see?') +
+      nextBtn(2);
+  }
+  function part2() {
+    var tc = ZONES.reduce(function (s, z) { return s + z[4]; }, 0), tp = ZONES.reduce(function (s, z) { return s + z[3]; }, 0);
+    var mean = ZONES.reduce(function (s, z) { return s + z[4] / z[3] * 100; }, 0) / ZONES.length;
+    var pooled = tc / tp * 100;
+    var out = '';
+    if (state.calc) {
+      var m = parseFloat(A('calcMean')), p = parseFloat(A('calcPooled'));
+      var okM = Math.abs(m - mean) <= 0.1, okP = Math.abs(p - pooled) <= 0.1;
+      out = '<div class="box"><div class="tag">Check</div><div class="ledger">' +
+        '<div><span>Average of the five zones</span><span>' + r1(mean) + '% ' + (isNaN(m) ? '(you left this blank)' : okM ? '(yours matches)' : '(you entered ' + m + ')') + '</span></div>' +
+        '<div><span>Total confirmed ' + tc + ' ÷ total predictions ' + tp + '</span><span>' + r1(pooled) + '% ' + (isNaN(p) ? '(you left this blank)' : okP ? '(yours matches)' : '(you entered ' + p + ')') + '</span></div>' +
+        '<div class="tot"><span>ClearView\'s headline</span><span>95.6%</span></div></div>' +
+        '<p style="margin-top:10px">Neither calculation produces the headline. Accuracy here only counts predictions that came true. The table never reports accidents the model failed to predict.</p></div>';
+    }
+    return '<h2>Audit the headline</h2>' +
+      '<p>Accuracy here is confirmed matches divided by predictions. Use your phone calculator. Round to one decimal.</p>' +
+      '<div class="field"><label for="a_calcMean">1. Average of the five zone accuracies (%)</label><input id="a_calcMean" type="number" step="0.1" inputmode="decimal" data-ans="calcMean" value="' + esc(A('calcMean')) + '"></div>' +
+      '<div class="field"><label for="a_calcPooled">2. Total confirmed matches ÷ total predictions (%)</label><input id="a_calcPooled" type="number" step="0.1" inputmode="decimal" data-ans="calcPooled" value="' + esc(A('calcPooled')) + '"></div>' +
+      '<div class="actions"><button class="secondary" data-act="check">Check my math</button></div>' + out +
+      ta('left', 'What does "accuracy" leave out of the picture?') +
+      pick('vote2', 'Your vote now (you voted: ' + voteLabel(A('vote1')) + ')', VOTES) +
+      nextBtn(3);
+  }
+  function part3() {
+    return '<h2>Who is affected?</h2>' +
+      '<p>ClearView\'s appendix lists these data notes.</p>' +
+      '<div class="box"><ul>' + APPENDIX.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul></div>' +
+      pick('worry', 'Which note worries you most?', APPENDIX.map(function (a, i) { return [String(i), (i + 1) + '. ' + a.replace(/"/g, '')]; })) +
+      ta('harmed', 'Who could be harmed if the city expands based on this report?') +
+      ta('benefits', 'Who benefits if the press release says "record-low accidents"? Who could have caught these problems, and who could not?') +
+      nextBtn(4);
+  }
+  function nextBtn(n) { return '<div class="actions"><button class="primary" data-act="part" data-n="' + n + '">Continue to Part ' + n + ': ' + PARTS[n - 1].title + '</button></div>'; }
+
+  /* ---------- part 4: the audit game ---------- */
+  function codeBox() {
+    return '<div class="box"><div class="tag">Midvale Data Professionals Association: Code of Practice</div><ol>' +
+      CODE.map(function (c) { return '<li><strong>' + esc(c[0]) + '</strong> ' + esc(c[1]) + '</li>'; }).join('') + '</ol></div>';
+  }
+  function briefView(r) {
+    var g = G(r);
+    if (r === 1) {
+      return '<h2>Round 1: The open market</h2>' +
+        '<div class="box"><div class="tag">The situation</div>' +
+        '<p>The City of Midvale will hire an independent firm to audit SafeAI before it expands. There is no professional body and no shared code. The city hires the lowest bidder. Three other firms are bidding, and you cannot see their prices. Ties go to the firm already on the city\'s vendor list.</p>' +
+        '<p style="margin:0"><strong>Your firm has two junior analysts on payroll. To keep them you need at least ' + money(TARGET) + ' in profit from this contract.</strong> Profit is your bid minus what your audit costs you.</p></div>' +
+        '<div class="field"><label for="firm">Your firm\'s name</label><input id="firm" type="text" maxlength="40" data-firm="1" placeholder="Name your firm" value="' + esc(state.firm) + '"></div>' +
+        '<p>The audit has five checks, drawn from the problems in ClearView\'s appendix. Each can be skipped, done at Basic level for half price, or done Thorough for full price. You decide how much of each to fund.</p>' +
+        '<div class="actions"><button class="primary" data-act="step" data-r="1" data-s="plan">Plan the audit and set your bid</button></div>';
+    }
+    return '<h2>Round 2: The Association</h2>' +
+      '<div class="box"><div class="tag">The situation</div>' +
+      '<p>After the SafeAI story, the city\'s consultants formed the Midvale Data Professionals Association. Every firm bidding has signed the same code of practice, and the Ethics Board enforces it. Quickcheck Consulting has withdrawn: its plan would break the code.</p>' +
+      '<p style="margin:0"><strong>Your firm needs another ' + money(TARGET) + ' in profit to meet payroll this quarter.</strong> The city again hires the lowest bid that meets the code.</p></div>' +
+      codeBox() +
+      '<div class="actions"><button class="primary" data-act="step" data-r="2" data-s="plan">Plan the audit and set your bid</button></div>';
+  }
+
+  function checkCard(r, c, i, levels, opts) {
+    opts = opts || {};
+    var lvl = levels[i], max = opts.max ? opts.max[i] : 2;
+    var bad = r === 2 && !opts.work && (c.critical ? lvl < 2 : lvl < 1);
+    var req = (r === 2 && !opts.work) ? '<span class="req' + (bad ? ' flag' : '') + '">Code: ' + (c.critical ? 'Thorough required' : 'Basic or better') + '</span>' : '';
+    var btns = [0, 1, 2].map(function (l) {
+      return '<button data-act="lvl" data-r="' + r + '" data-i="' + i + '" data-l="' + l + '" data-work="' + (opts.work ? 1 : 0) + '" aria-pressed="' + (lvl === l) + '"' + (l > max ? ' disabled' : '') + '><b>' + LNAME[l] + '</b><span>' + money(c.cost * l / 2) + '</span></button>';
+    }).join('');
+    return '<div class="check' + (bad ? ' flag' : '') + '"><div class="check-head"><h3><span class="num">' + (i + 1) + '</span>' + esc(c.name) + '</h3>' + req + '</div>' +
+      '<p class="why">' + esc(c.why) + '</p><div class="levels">' + btns + '</div></div>';
+  }
+  function planSummary(r) {
+    var g = G(r), c = cost(g.levels), profit = g.bid - c, v = violations(g.levels);
+    var over = isNaN(g.bid) || g.bid < 0 || g.bid > CEIL;
+    var status, cls = '';
+    if (over) { status = 'Enter a bid between $0k and ' + money(CEIL) + '.'; cls = 'bad'; }
+    else if (r === 2 && v.length) { status = 'Breaks the code: ' + v.join(', ') + '. The city will not accept this bid.'; cls = 'bad'; }
+    else { status = (r === 2 ? 'Meets the code. ' : 'No code is in force. ') + 'Payroll target ' + money(TARGET) + ': ' + (profit >= TARGET ? 'met if you win.' : 'not met at this price.'); cls = (profit >= TARGET ? 'good' : ''); }
+    return { cost: c, profit: profit, status: status, cls: cls, block: over || (r === 2 && v.length > 0) };
+  }
+  function planView(r) {
+    var g = G(r), s = planSummary(r);
+    return '<h2>Round ' + r + ': plan and bid</h2>' +
+      '<p class="legend">Skip costs nothing. Basic is a quick look at half price. Thorough is the full job. The bid ceiling is ' + money(CEIL) + '. You will not see the other bids until you lock yours in.</p>' +
+      (r === 2 ? '<div class="box"><div class="tag">Round 2: the code is in force</div><p style="margin:0">Your bid must meet the code. Once you win, you decide what work you actually do.</p></div>' : '') +
+      '<div class="checks">' + CHECKS.map(function (c, i) { return checkCard(r, c, i, g.levels); }).join('') + '</div>' +
+      '<div class="bar"><div class="bar-cell"><span class="lbl">Cost of your plan</span><span class="fig" id="sumCost">' + money(s.cost) + '</span></div>' +
+      '<div class="bar-cell bidcell"><label class="lbl" for="bidIn">Your bid (thousands of dollars)</label><div class="stepper"><button data-act="bidDown" data-r="' + r + '" aria-label="Lower bid by 0.5">-</button><input id="bidIn" type="number" inputmode="decimal" min="0" max="' + CEIL + '" step="0.5" data-bid="' + r + '" value="' + r1(g.bid) + '"><button data-act="bidUp" data-r="' + r + '" aria-label="Raise bid by 0.5">+</button></div></div>' +
+      '<div class="bar-cell"><span class="lbl">Profit if you win</span><span class="fig' + (s.profit < 0 ? ' neg' : '') + '" id="sumProfit">' + money(s.profit) + '</span></div>' +
+      '<p class="bar-status ' + s.cls + '" id="sumStatus">' + esc(s.status) + '</p>' +
+      '<button class="primary" id="lockBtn" data-act="lock" data-r="' + r + '"' + (s.block ? ' disabled' : '') + '>Lock in bid</button></div>';
+  }
+  function updatePlanBar() {
+    var r = state.game.round, s = planSummary(r);
+    var a = document.getElementById('sumCost'); if (!a) return;
+    a.textContent = money(s.cost);
+    var b = document.getElementById('sumProfit'); b.textContent = money(s.profit); b.className = 'fig' + (s.profit < 0 ? ' neg' : '');
+    var c = document.getElementById('sumStatus'); c.textContent = s.status; c.className = 'bar-status ' + s.cls;
+    document.getElementById('lockBtn').disabled = s.block;
+  }
+
+  function revealView(r) {
+    var g = G(r);
+    var rows = g.entries.map(function (e) {
+      var win = e === g.winner;
+      return '<tr class="' + (win ? 'win' : e.rival ? '' : 'me') + '"><td>' + esc(e.name) + (e.rival ? '' : ' (you)') + '</td><td class="num">' + money(e.bid) + '</td><td>' + (win ? '<span class="pill mixed">Lowest bid</span>' : '') + '</td></tr>';
+    }).join('');
+    var msg = g.won
+      ? '<div class="callout"><strong>You won the contract at ' + money(g.bid) + '.</strong> The city has not looked at what is inside anyone\'s plan. It saw only the prices.</div>'
+      : '<div class="callout"><strong>You were not hired.</strong> ' + esc(g.winner.name) + ' won at ' + money(g.winner.bid) + '. The city saw only prices, and it chose the lowest.</div>';
+    var next = g.won ? (r === 1 ? 'pressure' : 'work') : 'result';
+    var label = g.won ? (r === 1 ? 'Take the call' : 'Do the work') : 'See what the city got';
+    return '<h2>Round ' + r + ': the bids are open</h2>' +
+      '<div class="tablewrap"><table><thead><tr><th>Firm</th><th class="num">Bid</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' + msg +
+      '<div class="actions"><button class="primary" data-act="step" data-r="' + r + '" data-s="' + next + '">' + label + '</button></div>';
+  }
+
+  function workView(r) {
+    var g = G(r), act = g.actual || g.declared.slice();
+    var saved = r1(cost(g.declared) - cost(act));
+    return '<h2>Round 2: the work</h2>' +
+      '<p>You won at ' + money(g.bid) + ' by declaring this plan: ' + chips(g.declared) + '. Declared cost ' + money(cost(g.declared)) + ', so your profit would be ' + money(g.bid - cost(g.declared)) + '. Your payroll target is ' + money(TARGET) + '.</p>' +
+      '<p>You now decide what work you actually do. You can only do the same or less than you declared.</p>' +
+      '<div class="checks">' + CHECKS.map(function (c, i) { return checkCard(r, c, i, act, { work: true, max: g.declared }); }).join('') + '</div>' +
+      '<div class="box" style="margin-top:14px"><div class="tag">Your numbers</div><div class="ledger">' +
+      '<div><span>Declared cost</span><span>' + money(cost(g.declared)) + '</span></div>' +
+      '<div><span>Cost of the work you will do</span><span>' + money(cost(act)) + '</span></div>' +
+      '<div><span>Money saved by doing less</span><span>' + money(saved) + '</span></div>' +
+      '<div class="tot"><span>Profit so far</span><span>' + money(g.bid - cost(act)) + '</span></div></div></div>' +
+      '<div class="actions"><button class="primary" data-act="step" data-r="2" data-s="pressure">Start the work</button></div>';
+  }
+
+  function pressureView(r) {
+    var g = G(r), act = (r === 2 && g.actual) ? g.actual : g.declared;
+    var found = act[0] >= 1 || act[2] >= 1;
+    var body = found
+      ? '"The mayor announces on Monday. Your findings on the SafeAI data do not look good for us. Leave them out of the report, or soften them, and ClearView will recommend your firm for the citywide contract. Otherwise we will remember who was difficult."'
+      : '"The mayor announces on Monday. We need your firm\'s sign-off that SafeAI\'s 95.6% accuracy holds up. Certify it, and ClearView will recommend your firm for the citywide contract."';
+    var opts = found
+      ? ['Report exactly what you found', 'Soften the wording and move the numbers to an appendix (+$5k)', 'Leave the findings out of the report (+$10k)']
+      : ['State plainly which figures you did not verify', 'Describe the figures as consistent with ClearView\'s data (+$5k)', 'Certify the 95.6% accuracy figure (+$10k)'];
+    var rule = r === 2 ? '<div class="box"><div class="tag">The code</div><p style="margin:0">Article 1: Do not certify a finding you have not verified. Article 3: Report findings as found, even when the client disagrees. The Ethics Board inspects half of all contracts, and it checks your report against your work.</p></div>' : '';
+    return '<h2>ClearView calls</h2>' +
+      '<div class="box alert"><div class="tag">Phone call to your lead partner</div><p style="margin:0">ClearView\'s CEO says: ' + esc(body) + '</p></div>' + rule +
+      '<div class="field"><span class="lab">What does your firm put in the report?</span><div class="choices col">' +
+      opts.map(function (o, i) { return '<button data-act="flag" data-r="' + r + '" data-f="' + i + '" aria-pressed="' + (g.flagSet && g.flag === i) + '">' + esc(o) + '</button>'; }).join('') + '</div></div>' +
+      '<div class="actions"><button class="primary" data-act="step" data-r="' + r + '" data-s="' + (r === 1 ? 'result' : 'inspect') + '"' + (g.flagSet ? '' : ' disabled') + '>Send the report</button></div>';
+  }
+
+  function inspectView(r) {
+    var g = G(r), drawn = g.inspected !== null;
+    var body;
+    if (!drawn) {
+      body = '<p>The Ethics Board inspects half of all contracts. It checks the work you declared against the work you did, and your report against your findings.</p>' +
+        '<div class="actions"><button class="primary" data-act="draw" data-r="2">Draw the Board\'s inspection card</button></div>';
+    } else if (g.inspected) {
+      body = '<div class="box alert"><div class="tag">Ethics Board</div><p style="margin:0"><strong>Your contract was selected for inspection.</strong> The Board is comparing your work to your bid and your report to your findings.</p></div>' +
+        '<div class="actions"><button class="primary" data-act="step" data-r="2" data-s="result">See the Board\'s findings</button></div>';
+    } else {
+      body = '<div class="box"><div class="tag">Ethics Board</div><p style="margin:0"><strong>Your contract was not selected for inspection.</strong> Nobody will compare your work to your bid.</p></div>' +
+        '<div class="actions"><button class="primary" data-act="step" data-r="2" data-s="result">See the result</button></div>';
+    }
+    return '<h2>The Ethics Board</h2>' + body;
+  }
+
+  function ledger(o, r) {
+    var rows = [];
+    if (o.won) {
+      rows.push('<div><span>Your bid</span><span>' + money(o.bid) + '</span></div>');
+      rows.push('<div><span>Cost of the audit you did</span><span>-' + money(o.cost) + '</span></div>');
+      if (o.bonus) rows.push('<div><span>ClearView favor for the report</span><span>+' + money(o.bonus) + '</span></div>');
+      if (o.fine1) rows.push('<div><span>Board fine: work not done (3 times ' + money(o.shortfall) + ')</span><span>-' + money(o.fine1) + '</span></div>');
+      if (o.fine2) rows.push('<div><span>Board fine: misreporting</span><span>-' + money(o.fine2) + '</span></div>');
+      rows.push('<div class="tot"><span>Profit</span><span>' + money(o.profit) + '</span></div>');
+    } else {
+      rows.push('<div class="tot"><span>Profit</span><span>$0k</span></div>');
+    }
+    return '<div class="ledger">' + rows.join('') + '</div>';
+  }
+  function resultView(r) {
+    var g = G(r), o = calc(r), parts = '';
+    var head;
+    if (o.won) {
+      head = '<h2>Round ' + r + ': the result</h2><p>You audited SafeAI. Your work: ' + chips(o.act) + '</p>';
+    } else {
+      head = '<h2>Round ' + r + ': the result</h2><p>You were not hired. ' + esc(o.winner.name) + ' audited SafeAI with this plan: ' + chips(o.winner.levels) + '</p>';
+    }
+    var staff = o.met ? 'Payroll met: both analysts stay.' : (r === 1 ? 'Payroll not met: you lay off both junior analysts.' : 'Payroll not met this quarter.');
+    var extras = '';
+    if (o.ins) {
+      if (o.fine1 || o.fine2) {
+        extras = '<div class="box alert"><div class="tag">Ethics Board findings</div><p style="margin:0">' +
+          (o.shortfall > 0 ? 'Your work fell short of your bid. ' : '') + (o.flag > 0 ? 'Your report did not match your findings. ' : '') +
+          'You are fined, and your license is suspended.</p></div>';
+      } else {
+        extras = '<div class="box"><div class="tag">Ethics Board findings</div><p style="margin:0">The Board found your work matched your bid and your report matched your findings. No action.</p></div>';
+      }
+    } else if (r === 2 && o.won && (o.shortfall > 0 || o.flag > 0)) {
+      extras = '<div class="box alert"><div class="tag">You were not inspected</div><p style="margin:0">Nobody fined you. The city still got the audit you actually did, and the problems below still happened.</p></div>';
+    }
+    var note = (r === 1 && o.won) ? '<p>No licensing body reviews this audit, so nobody can fine or suspend the firm.</p>' : '';
+    var flagNote = (o.won && o.flag > 0) ? '<p>Because the report was ' + (o.flag === 1 ? 'softened' : 'cut') + ', the city acted on less than the audit found. The outcomes below reflect that.</p>' : '';
+    var others = '';
+    if (g.entries) {
+      others = '<h2 style="margin-top:20px">What each bid would have done</h2><p>Thorough earns 2 points per check, Basic 1, Skip 0. Eight or more is a good outcome, five to seven is mixed, and four or fewer is bad.</p>' +
+        '<div class="tablewrap"><table><thead><tr><th>Firm</th><th>Plan</th><th class="num">Bid</th><th class="num">Points</th><th>Outcome</th></tr></thead><tbody>' +
+        g.entries.slice().sort(function (a, b) { return points(b.levels) - points(a.levels) || a.bid - b.bid; }).map(function (e) {
+          var p = points(e.levels), t = tier(p);
+          return '<tr class="' + (e === g.winner ? 'win' : e.rival ? '' : 'me') + '"><td>' + esc(e.name) + (e.rival ? '' : ' (you, as declared)') + '</td><td>' + chips(e.levels) + '</td><td class="num">' + money(e.bid) + '</td><td class="num">' + p + ' of 10</td><td><span class="pill ' + t + '">' + TIER_LABEL[t] + '</span></td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }
+    var next = '<div class="actions"><button class="primary" data-act="step" data-r="' + r + '" data-s="reflect">Reflect on the round</button></div>';
+    return head +
+      '<div class="verdict ' + o.tier + '"><div class="big">For the city: ' + TIER_LABEL[o.tier] + ', ' + o.points + ' of 10 points</div>' +
+      '<div>For your firm: profit ' + money(o.profit) + '. ' + staff + '</div>' +
+      (o.susp ? '<div><strong>License suspended.</strong> Your firm cannot bid on future public contracts.</div>' : '') + '</div>' +
+      '<div class="box"><div class="tag">Your ledger</div>' + ledger(o, r) + '</div>' + extras + note + flagNote + outcomeCards(o.eff) + others + next;
+  }
+
+  function reflectView(r) {
+    var g = G(r), o = calc(r);
+    var prompts;
+    if (r === 1) {
+      prompts = o.won
+        ? 'You won at ' + money(g.bid) + '. Did your audit protect the city? What did you owe the city, ClearView, and your two analysts? Would your answer change if nobody could have fined you either way?'
+        : 'You lost to ' + g.winner.name + ', and the city got a ' + TIER_LABEL[o.tier].toLowerCase() + '. Would you have bid under ' + money(RIVALS[1][0].bid) + ' to keep your analysts? If you refuse and someone worse takes the job, is refusing still the right call?';
+    } else {
+      prompts = (o.won ? (o.shortfall > 0 || o.flag > 0 ? 'You cut corners or shaded the report' + (o.ins ? ' and the Board caught it.' : ' and nobody checked.') + ' If no one had inspected you, would it have been right? What did the Board change about your choice, and what did it leave to your own judgment?' : 'You did the work you bid' + (o.met ? '.' : ' and it did not meet payroll.') + ' What did that cost you, and who benefited? Why does a code need a Board and not only a conscience?') : 'You lost to a compliant bid. Your firm missed payroll, but the city got a ' + TIER_LABEL[o.tier].toLowerCase() + '. Was the code worth it for the firms? For the public?');
+    }
+    var key = r === 1 ? 'ref1' : 'ref2';
+    var btn = r === 1 ? '<button class="primary" data-act="toRound2">Start Round 2: the Association</button>' : '<button class="primary" data-act="toFinal">See the final standings</button>';
+    return '<h2>Round ' + r + ': reflect</h2><div class="box"><p style="margin:0">' + esc(prompts) + '</p></div>' + ta(key, 'Your team\'s answer') + '<div class="actions">' + btn + '</div>';
+  }
+
+  function standings() {
+    var o1 = calc(1), o2 = calc(2);
+    var total = o1.profit + o2.profit;
+    return { o1: o1, o2: o2, total: total, susp: o2.susp };
+  }
+  function finalView() {
+    var s = standings();
+    function row(label, o) {
+      return '<tr><td>' + label + '</td><td>' + (o.won ? 'Won' : 'Not hired') + '</td><td class="num">' + money(o.profit) + '</td><td class="num">' + (o.fine1 + o.fine2 ? money(o.fine1 + o.fine2) : '$0k') + '</td><td><span class="pill ' + o.tier + '">' + TIER_LABEL[o.tier] + '</span></td></tr>';
+    }
+    return '<h2>Final standings: ' + esc(firmName()) + '</h2>' +
+      '<div class="tablewrap"><table><thead><tr><th>Round</th><th>Contract</th><th class="num">Profit</th><th class="num">Fines</th><th>City outcome</th></tr></thead><tbody>' +
+      row('1: Open market', s.o1) + row('2: Association', s.o2) + '</tbody></table></div>' +
+      '<div class="verdict ' + (s.susp ? 'bad' : 'mixed') + '"><div class="big">Total profit ' + money(s.total) + '</div><div>License: ' + (s.susp ? 'suspended' : 'active') + '.</div></div>' +
+      '<div class="callout">Compare your standings with another team\'s. Whose firm is richest? Whose firm did the most good for the city? Were they the same firm?</div>' +
+      nextBtn(5);
+  }
+
+  function part4() {
+    var gm = state.game;
+    if (gm.round === 3) return finalView();
+    var r = gm.round, g = G(r);
+    var v;
+    switch (g.step) {
+      case 'brief': v = briefView(r); break;
+      case 'plan': v = planView(r); break;
+      case 'reveal': v = revealView(r); break;
+      case 'work': v = workView(r); break;
+      case 'pressure': v = pressureView(r); break;
+      case 'inspect': v = inspectView(r); break;
+      case 'result': v = resultView(r); break;
+      default: v = reflectView(r);
+    }
+    return '<div class="kicker">Part 4 | Round ' + r + ' of 2</div>' + v;
+  }
+
+  /* ---------- part 5: the real code ---------- */
+  function partCode() {
+    var rows = CHECKS.map(function (c, i) {
+      return '<div class="field"><label for="a_map' + i + '">' + (i + 1) + '. ' + esc(c.name) + '</label><select id="a_map' + i + '" data-ans="map' + i + '"><option value="">Choose a principle</option>' +
+        PRINCIPLES.map(function (p) { return '<option value="' + esc(p[0]) + '"' + (A('map' + i) === p[0] ? ' selected' : '') + '>' + esc(p[0]) + '</option>'; }).join('') + '</select></div>';
+    }).join('');
+    var common = state.mapChecked
+      ? '<div class="box"><div class="tag">Common answers (not the only defensible ones)</div><div class="ledger">' +
+        CHECKS.map(function (c, i) { return '<div><span>' + esc(c.name) + '</span><span>' + esc(COMMON[i]) + '</span></div>'; }).join('') + '</div></div>'
+      : '';
+    return '<h2>The real code</h2>' +
+      '<p>In Round 2 the code came with an Ethics Board. Real professional codes usually do not. Chapter 6 points out that a society like the ACM has power only over people who join it or follow its standards voluntarily. Here is what the ACM has actually written.</p>' +
+      '<div class="box"><div class="tag">From the ACM Code of Ethics</div><div class="ledger">' +
+      CLAUSES.map(function (c) { return '<div><span>' + c[0] + '</span><span style="text-align:right">' + esc(c[1]) + '</span></div>'; }).join('') + '</div></div>' +
+      '<div class="box"><div class="tag">ACM principles for algorithmic transparency and accountability (2017)</div><ol>' +
+      PRINCIPLES.map(function (p) { return '<li><strong>' + esc(p[0]) + '.</strong> ' + esc(p[1]) + '</li>'; }).join('') + '</ol></div>' +
+      '<h3 style="margin-bottom:8px">1. Match each audit check to the principle it serves</h3>' + rows +
+      '<div class="actions"><button class="secondary" data-act="mapCheck">Compare with common answers</button></div>' + common +
+      '<h3 style="margin:18px 0 8px">2. The call comes again</h3>' +
+      '<p>ClearView\'s CEO calls and asks you to leave the findings out. This time there is no Board and nobody will ever inspect your work.</p>' +
+      ta('codeCall', 'Which clause or principle would you point to when you refuse, and what would you say?') +
+      pick('follow', 'If nobody could ever check, would you follow the code?', [['yes', 'Yes'], ['no', 'No'], ['depends', 'It depends']]) +
+      '<h3 style="margin:18px 0 8px">3. What the code cannot do</h3>' +
+      ta('codeLimit', 'Who can make a firm follow the ACM code, and what could they do if it does not? Compare this with the Ethics Board in Round 2.') +
+      nextBtn(6);
+  }
+
+  /* ---------- parts 5 and 6 ---------- */
+  var WHO = [['driver', 'Driver or machine'], ['maker', 'Maker'], ['engineer', 'Engineer who signed off'], ['owner', 'Owner or passenger'], ['nobody', 'Nobody']];
+  var CASES = [['A', 'A human driver in an ordinary car'], ['B', 'A car with no steering wheel that drives itself'], ['C', 'A humanoid robot that drives an ordinary car the way a person would']];
+  function part6() {
+    return '<h2>Who answers?</h2>' +
+      '<p>The same crash happens in all three cases. B and C use the same sensors and software.</p>' +
+      '<div class="whogrid">' + CASES.map(function (c) {
+        return '<div class="box" style="margin:0"><h3 style="margin-bottom:8px">' + c[0] + ': ' + esc(c[1]) + '</h3><div class="choices">' + WHO.map(function (w) {
+          return '<button data-act="pick" data-k="who' + c[0] + '" data-v="' + w[0] + '" aria-pressed="' + (A('who' + c[0]) === w[0]) + '">' + esc(w[1]) + '</button>';
+        }).join('') + '</div></div>';
+      }).join('') + '</div>' +
+      '<div style="height:18px"></div>' +
+      ta('bc', 'Did your answer change between B and C? If so, why? If not, why does the body not matter?') +
+      '<div class="box"><div class="tag">Two ideas to use</div>' +
+      '<p>Richards and Smart (2016) call the belief that humanoid robots differ in a meaningful way from other robots "the android fallacy."</p>' +
+      '<p style="margin:0">Lawyers and courts handle new technology by comparing it to old technology. In the United States, email was not given the same privacy protections as physical mail. A weak metaphor can shape how a technology is built and regulated for years.</p></div>' +
+      pick('tool', 'Back to SafeAI: is it a tool, or did it decide where police go?', [['tool', 'A tool'], ['decider', 'A decision-maker'], ['both', 'Both, depending on who relies on it']]) +
+      ta('whoSafe', 'If the expansion hurts people in the zones with unreliable data, who answers? Think about your game: who answered when a firm skipped checks?') +
+      '<h2 style="margin-top:24px">Your recap</h2><p>This collects everything you entered today. Copy it and paste it into the Canvas assignment.</p>' +
+      '<textarea class="recap" id="recap" readonly>' + esc(recapText()) + '</textarea>' +
+      '<div class="actions"><button class="secondary" data-act="refreshRecap">Refresh recap</button><button class="secondary" data-act="copy">Copy recap</button></div>' +
+      '<p class="foot">The consequences in this exercise are invented for teaching. They are not findings about any real company or report.</p>';
+  }
+
+  function recapText() {
+    var s = standings(), L = [];
+    L.push('BUS 308 Week 12, Friday November 6: SafeAI session');
+    L.push('Firm: ' + firmName());
+    L.push('');
+    L.push('PART 1. First vote: ' + voteLabel(A('vote1')) + '. Why: ' + A('why1'));
+    L.push('PART 2. Zone average ' + (A('calcMean') || '(blank)') + '%, pooled ' + (A('calcPooled') || '(blank)') + '%. Accuracy leaves out: ' + A('left'));
+    L.push('Vote after audit: ' + voteLabel(A('vote2')));
+    L.push('PART 3. Most worrying note: ' + (A('worry') !== '' ? APPENDIX[parseInt(A('worry'), 10)] : '(none picked)'));
+    L.push('Harmed: ' + A('harmed'));
+    L.push('Benefits / who could catch it: ' + A('benefits'));
+    L.push('');
+    L.push('PART 4. Round 1: ' + (s.o1.played === false ? 'not played' : (s.o1.won ? 'won' : 'not hired')) + ', profit ' + money(s.o1.profit) + ', city outcome: ' + TIER_LABEL[s.o1.tier] + '.');
+    L.push('Reflection: ' + A('ref1'));
+    L.push('Round 2: ' + (s.o2.played === false ? 'not played' : (s.o2.won ? 'won' : 'not hired')) + ', profit ' + money(s.o2.profit) + ', fines ' + money(s.o2.fine1 + s.o2.fine2) + ', license ' + (s.susp ? 'suspended' : 'active') + ', city outcome: ' + TIER_LABEL[s.o2.tier] + '.');
+    L.push('Reflection: ' + A('ref2'));
+    L.push('Total profit: ' + money(s.total));
+    L.push('');
+    L.push('PART 5. Principles matched: ' + CHECKS.map(function (c, i) { return c.name + ' = ' + (A('map' + i) || '(blank)'); }).join('; '));
+    L.push('Point to when refusing: ' + A('codeCall') + ' Would follow if nobody checked: ' + (A('follow') || '(blank)'));
+    L.push('What the code cannot do: ' + A('codeLimit'));
+    L.push('');
+    L.push('PART 6. Who answers: A ' + A('whoA') + ', B ' + A('whoB') + ', C ' + A('whoC') + '.');
+    L.push('B versus C: ' + A('bc'));
+    L.push('SafeAI is: ' + A('tool') + '. Who answers: ' + A('whoSafe'));
+    return L.join('\n');
+  }
+  /* ---------- shell ---------- */
+  function render() {
+    var nav = '<nav class="nav" aria-label="Parts">' + PARTS.map(function (x) {
+      return '<button data-act="part" data-n="' + x.n + '"' + (x.n === state.part ? ' aria-current="step"' : '') + '>' + x.n + '. ' + esc(x.title) + '<span>' + x.min + ' min</span></button>';
+    }).join('') + '</nav>';
+    var body = [null, part1, part2, part3, part4, partCode, part6][state.part]();
+    document.getElementById('app').innerHTML =
+      '<header class="top"><div><div class="kicker">City of Midvale | SafeAI</div><h1>The Lowest Bidder</h1></div></header>' +
+      nav + body;
+  }
+  function go(n) { state.part = n; render(); window.scrollTo(0, 0); }
+  function setStep(r, s) { G(r).step = s; render(); window.scrollTo(0, 0); }
+
+  /* ---------- events ---------- */
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-act]');
+    if (!el || el.disabled) return;
+    var act = el.getAttribute('data-act'), r = parseInt(el.getAttribute('data-r'), 10), i = parseInt(el.getAttribute('data-i'), 10);
+    var g = isNaN(r) ? null : G(r);
+    switch (act) {
+      case 'part': go(parseInt(el.getAttribute('data-n'), 10)); return;
+      case 'mapCheck': state.mapChecked = true; render(); return;
+      case 'pick': state.ans[el.getAttribute('data-k')] = el.getAttribute('data-v'); render(); return;
+      case 'check': state.calc = true; render(); return;
+      case 'step': setStep(r, el.getAttribute('data-s')); return;
+      case 'lvl':
+        var l = parseInt(el.getAttribute('data-l'), 10);
+        if (el.getAttribute('data-work') === '1') { g.actual = (g.actual || g.declared.slice()); g.actual[i] = Math.min(l, g.declared[i]); }
+        else g.levels[i] = l;
+        render(); return;
+      case 'bidUp': g.bid = Math.min(CEIL, r1((isNaN(g.bid) ? 0 : g.bid) + 0.5)); render(); return;
+      case 'bidDown': g.bid = Math.max(0, r1((isNaN(g.bid) ? 0 : g.bid) - 0.5)); render(); return;
+      case 'lock': g.declared = g.levels.slice(); g.actual = null; resolve(r); setStep(r, 'reveal'); return;
+      case 'flag': g.flag = parseInt(el.getAttribute('data-f'), 10); g.flagSet = true; render(); return;
+      case 'draw': g.inspected = Math.random() < INSPECT; render(); return;
+      case 'toRound2': state.game.round = 2; render(); window.scrollTo(0, 0); return;
+      case 'toFinal': state.game.round = 3; render(); window.scrollTo(0, 0); return;
+      case 'refreshRecap': var t = document.getElementById('recap'); if (t) t.value = recapText(); return;
+      case 'copy':
+        var ta2 = document.getElementById('recap'); if (ta2) { ta2.value = recapText(); ta2.select(); }
+        try { navigator.clipboard.writeText(recapText()).then(function () { el.textContent = 'Copied'; }, function () { el.textContent = 'Select the text and copy it'; }); }
+        catch (err) { el.textContent = 'Select the text and copy it'; }
+        return;
+    }
+  });
+  document.addEventListener('input', function (e) {
+    var el = e.target, k = el.getAttribute && el.getAttribute('data-ans');
+    if (k) { state.ans[k] = el.value; var rc = document.getElementById('recap'); if (rc) rc.value = recapText(); return; }
+    if (el.getAttribute && el.getAttribute('data-firm')) { state.firm = el.value; return; }
+    var b = el.getAttribute && el.getAttribute('data-bid');
+    if (b) { G(parseInt(b, 10)).bid = parseFloat(el.value); updatePlanBar(); }
+  });
+
+  /* ---------- boot ---------- */
+  function boot(saved) {
+    if (saved && saved.game && saved.ans) state = saved;
+    render();
+  }
+  try { if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(function () { return state; }); } catch (e) {}
+  if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot);
+  else boot((window.claude && window.claude.hot && window.claude.hot.data) || {});
+
+})();
+</script>
+</body>
+</html>
